@@ -1,0 +1,254 @@
+---
+title: "lab-3"
+author: "Matt Babb"
+format:
+  dashboard:
+    orientation: rows
+    logo: Dharma_Wheel_1.svg
+    nav-buttons:
+      - icon: envelope
+        href: "mailto:msbabb@calpoly.edu"
+        aria-label: "Email Matt"
+      - icon: linkedin
+        href: "https://www.linkedin.com/in/matt-babb-854b1523b/"
+        aria-label: "View LinkedIn"
+      - icon: github
+        href: "https://github.com/mattbabb737"
+        aria-label: "GitHub"      
+editor: source
+embed-resources: true
+echo: false
+warning: false
+error: false
+
+---
+
+
+```{r}
+#| label: read-in-wellcome-data
+
+
+library(readxl)
+library(tidyverse)
+
+
+wgm_raw <- read_excel("wgm2018-dataset-crosstabs-all-countries_1.xlsx", skip = 2)
+
+
+wgm_clean <- wgm_raw %>%
+  tidyr::fill(Question) 
+
+
+region_map <- list(
+  "Asia" = c("Afghanistan", "Bangladesh", "India", "Iran", "Nepal", "Pakistan", "Sri Lanka",
+             "Cambodia", "Indonesia", "Laos", "Malaysia", "Myanmar", "Philippines", "Singapore",
+             "Thailand", "Vietnam", "China", "Japan", "Mongolia", "South Korea", "Taiwan"),
+  "Middle East and North Africa" = c("Algeria", "Egypt", "Libya", "Morocco", "Tunisia", "Iraq",
+             "Israel", "Jordan", "Kuwait", "Lebanon", "Palestinian Territories", "Saudi Arabia",
+             "Turkey", "United Arab Emirates", "Yemen"),
+  "Sub-Saharan Africa" = c("Burundi", "Comoros", "Ethiopia", "Kenya", "Madagascar", "Malawi", 
+             "Mauritius", "Mozambique", "Rwanda", "Tanzania", "Uganda", "Zambia", "Zimbabwe",
+             "Benin", "Burkina Faso", "Ghana", "Guinea", "Ivory Coast", "Liberia", "Mali", 
+             "Mauritania", "Niger", "Nigeria", "Senegal", "Sierra Leone", "The Gambia", "Togo",
+             "Botswana", "Namibia", "South Africa", "Eswatini", "Cameroon", "Chad", 
+             "Republic of the Congo", "Gabon"),
+  "Americas" = c("Costa Rica", "Dominican Republic", "El Salvador", "Guatemala", "Haiti", 
+             "Honduras", "Mexico", "Nicaragua", "Panama", "Argentina", "Bolivia", "Brazil", 
+             "Chile", "Colombia", "Ecuador", "Paraguay", "Peru", "Uruguay", "Venezuela", 
+             "Canada", "United States"),
+  "Europe" = c("Denmark", "Estonia", "Finland", "Iceland", "Ireland", "Latvia", "Lithuania", 
+             "Norway", "Sweden", "United Kingdom", "Albania", "Bosnia and Herzegovina", 
+             "Croatia", "Cyprus", "Greece", "Italy", "Malta", "North Macedonia", "Montenegro", 
+             "Portugal", "Serbia", "Slovenia", "Spain", "Austria", "Belgium", "France", 
+             "Germany", "Luxembourg", "Netherlands", "Switzerland"),
+  "Former Soviet Union" = c("Armenia", "Azerbaijan", "Georgia", "Kazakhstan", "Kyrgyzstan", 
+             "Tajikistan", "Turkmenistan", "Uzbekistan", "Belarus", "Bulgaria", 
+             "Czech Republic", "Hungary", "Moldova", "Poland", "Romania", "Russia", 
+             "Slovakia", "Ukraine")
+)
+
+```
+
+
+```{r fig.width=12, fig.height=40}
+
+wgm_agree <- wgm_clean %>%
+  filter(
+    Question == "Q25 Do you strongly or somewhat agree, strongly or somewhat disagree or neither agree nor disagree with the following statement? Vaccines are safe.",
+    Response %in% c("Strongly agree", "Somewhat agree")
+  ) %>%
+  group_by(Country) %>%
+  summarise(
+    percent_agree = sum(`Column N %...4`, na.rm = TRUE)
+  ) %>%
+  arrange(desc(percent_agree))
+
+
+country_to_region <- unlist(lapply(names(region_map), function(region) {
+  setNames(rep(region, length(region_map[[region]])), region_map[[region]])
+})
+)
+
+
+wgm_agree <- wgm_agree %>%
+  mutate(Region = country_to_region[Country],
+         Region = ifelse(is.na(Region), "Other/Unclassified", Region))
+
+```
+
+
+```{r}
+
+library(plotly)
+library(ggplot2)
+library(dplyr)
+library(forcats)
+library(ggridges)
+library(crosstalk)
+library(bslib)
+library(htmltools)
+
+
+wgm_agree_filtered <- wgm_agree %>%
+  filter(Region != "Unclassified") %>%
+  mutate(Region = fct_reorder(Region, percent_agree, .fun = median))
+
+
+shared_data <- SharedData$new(wgm_agree_filtered)
+
+
+# Base plot
+p <- ggplot(shared_data, aes(x = percent_agree, y = Region, fill = Region)) +
+  geom_density_ridges(scale = 1.2, alpha = 0.6, color = "white") +
+  geom_point(
+    aes(text = paste("Country:", Country, "<br>Score:",
+                     round(percent_agree * 100, 1), "%")),
+    position = position_jitter(height = 0.1),
+    size = 2,
+    color = "black"
+  ) +
+  scale_x_continuous(
+    limits = c(0.2, 1.0),
+    labels = scales::percent_format(accuracy = 1)
+  ) +
+  labs(
+    x = "Agreement",
+    y = NULL
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 16, face = "bold"),
+    legend.position = "none"
+  )
+
+
+# Interactive plot
+plotly_obj <- ggplotly(p, tooltip = "text") %>%
+  layout(
+    title = list(
+      text = "<b>Belief that Vaccines are Safe by Region</b>",
+      x = 0,
+      xanchor = "left",
+      y = 0.95,
+      yanchor = "top",
+      font = list(size = 20, family = "Arial", color = "black")
+    )
+  )
+
+
+# Combine search bar and plot (stacked vertically)
+browsable(
+  tagList(
+    filter_select(id = "country",
+                  label = "Select Country",
+                  sharedData = shared_data,
+                  group = ~Country),
+    plotly_obj
+  )
+)
+
+
+```
+
+
+```{r}
+
+library(dplyr)
+library(tidyr)
+library(leaflet)
+library(rnaturalearth)
+library(rnaturalearthdata)
+library(sf)
+library(htmltools)
+
+
+# Pull just Q19 responses
+q19_overall <- wgm_clean %>%
+  filter(Question == "Q19 Overall, do you think that science and technology will increase or decrease the number of jobs in your local area in the next five years?") %>%
+  select(Country, Response, OverallPercent = `Column N %...4`) %>%
+  distinct() %>%
+  pivot_wider(names_from = Response, values_from = OverallPercent)
+
+
+# Clean summary table
+q19_final <- q19_overall %>%
+  select(Country, Increase, Decrease) %>%
+  mutate(Total = Increase - Decrease)
+
+
+# Get country centroids
+world <- ne_countries(scale = "medium", returnclass = "sf") %>%
+  st_centroid()
+
+
+centroids <- world %>%
+  select(Country = name_long, geometry) %>%
+  st_coordinates() %>%
+  as.data.frame() %>%
+  bind_cols(Country = world$name_long)
+
+
+# Join coordinates to data
+q19_geo <- q19_final %>%
+  left_join(centroids, by = "Country") %>%
+  filter(!is.na(X) & !is.na(Y))
+
+
+# Create diverging palette
+max_val <- max(abs(q19_geo$Total))
+diverging_palette <- colorNumeric(
+  palette = colorRampPalette(c("#440154", "#C7E9B4", "#5DC863"))(100),
+  domain = c(-max_val * 0.5, max_val)
+)
+
+
+# Leaflet map (no search bar)
+leaflet(q19_geo) %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  addCircleMarkers(
+    lng = ~X,
+    lat = ~Y,
+    radius = 7,
+    color = ~diverging_palette(Total),
+    stroke = TRUE,
+    weight = 1,
+    opacity = 1,
+    fillOpacity = 0.9,
+    label = ~Country,
+    popup = ~paste0(
+      "<strong>", Country, "</strong><br>",
+      "Net Agreement: ", round(Total * 100, 1), "%"
+    )
+  ) %>%
+  addLegend(
+    "bottomright",
+    pal = diverging_palette,
+    values = ~Total,
+    title = "Net % Agreement",
+    labFormat = labelFormat(suffix = "%", transform = function(x) 100 * x),
+    opacity = 1
+  )
+
+
+```
+
