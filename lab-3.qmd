@@ -129,6 +129,16 @@ wgm_agree_filtered <- wgm_agree %>%
 shared_data <- SharedData$new(wgm_agree_filtered)
 
 
+region_colors <- c(
+  "Asia" = "#E69F00",
+  "Sub-Saharan Africa" = "#56B4E9",
+  "Middle East and North Africa" = "#009E73",
+  "Americas" = "#F0E442",
+  "Other/Unclassified" = "#0072B2",
+  "Europe" = "#D55E00",
+  "Former Soviet Union" = "#CC79A7"
+)
+
 # Base plot
 p <- ggplot(shared_data, aes(x = percent_agree, y = Region, fill = Region)) +
   geom_density_ridges(scale = 1.2, alpha = 0.6, color = "white") +
@@ -136,9 +146,10 @@ p <- ggplot(shared_data, aes(x = percent_agree, y = Region, fill = Region)) +
     aes(text = paste("Country:", Country, "<br>Score:",
                      round(percent_agree * 100, 1), "%")),
     position = position_jitter(height = 0.1),
-    size = 2,
+    size = 3,
     color = "black"
   ) +
+  scale_fill_manual(values = region_colors) +
   scale_x_continuous(
     limits = c(0.2, 1.0),
     labels = scales::percent_format(accuracy = 1)
@@ -216,10 +227,16 @@ region_extremes$Region <- factor(region_extremes$Region, levels = custom_order)
 region_extremes <- region_extremes[order(region_extremes$Region), ]
 
 regions <- unique(wgm_agree_filtered$Region)
-region_colors <- setNames(scales::hue_pal()(length(regions)), regions)
 
-region_colors <- setNames(scales::hue_pal()(length(custom_order)), rev(custom_order))
-
+region_colors <- c(
+  "Asia" = "#E69F00",
+  "Sub-Saharan Africa" = "#56B4E9",
+  "Middle East and North Africa" = "#009E73",
+  "Americas" = "#F0E442",
+  "Other/Unclassified" = "#0072B2",
+  "Europe" = "#D55E00",
+  "Former Soviet Union" = "#CC79A7"
+)
 # Create cards with correct colors
 tagList(
   lapply(1:nrow(region_extremes), function(i) {
