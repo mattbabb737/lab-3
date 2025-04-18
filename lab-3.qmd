@@ -4,6 +4,7 @@ author: "Matt Babb"
 format:
   dashboard:
     orientation: columns
+    theme: minty
     logo: Dharma_Wheel_1.svg
     nav-buttons:
       - icon: envelope
