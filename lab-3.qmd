@@ -194,7 +194,7 @@ browsable(
 
 ```
 
-## Global region extremes {.column-body} {width="20%"}
+## Global region extremes {.column-body} {width="25%"}
 
 ```{r}
 #| title: Highest and Lowest Scores by Region
@@ -243,17 +243,21 @@ tagList(
   lapply(1:nrow(region_extremes), function(i) {
     region_name <- as.character(region_extremes$Region[i])
     border_color <- region_colors[[region_name]]
-    
-    div(class = "card",
-        style = paste0("padding: 0.8em; margin-bottom: 0.8em; background-color: #f9f9f9; ",
-                       "border-left: 6px solid ", border_color, "; font-size: 12px; overflow: visible;"),
-        h4(style = "font-size: 16px; font-weight: bold; margin-bottom: 0.4em;", region_name),
-        p(style = "margin: 0;", tags$strong("Lowest: "),
-          region_extremes$LowestCountry[i],
-          paste0(" (", round(region_extremes$LowestPercent[i] * 100, 1), "%)")),
-        p(style = "margin: 0;", tags$strong("Highest: "),
-          region_extremes$HighestCountry[i],
-          paste0(" (", round(region_extremes$HighestPercent[i] * 100, 1), "%)"))
+
+    div(
+      style = paste0(
+        "padding: 0.8em; margin-bottom: 0.8em; background-color: #f9f9f9; ",
+        "border-left: 6px solid ", border_color, "; ",
+        "font-size: 12px; display: flex; flex-direction: column; ",
+        "justify-content: flex-start; height: 100%; border-radius: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);"
+      ),
+      h4(style = "font-size: 13px; font-weight: bold; margin: 0 0 0.4em 0;", region_name),
+      p(style = "margin: 0;", tags$strong("Lowest: "),
+        region_extremes$LowestCountry[i],
+        paste0(" (", round(region_extremes$LowestPercent[i] * 100, 1), "%)")),
+      p(style = "margin: 0;", tags$strong("Highest: "),
+        region_extremes$HighestCountry[i],
+        paste0(" (", round(region_extremes$HighestPercent[i] * 100, 1), "%)"))
     )
   })
 )
