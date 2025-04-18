@@ -3,7 +3,7 @@ title: "lab-3"
 author: "Matt Babb"
 format:
   dashboard:
-    orientation: rows
+    orientation: columns
     logo: Dharma_Wheel_1.svg
     nav-buttons:
       - icon: envelope
@@ -25,9 +25,6 @@ error: false
 
 
 ```{r}
-#| label: read-in-wellcome-data
-
-
 library(readxl)
 library(tidyverse)
 
@@ -94,10 +91,23 @@ wgm_agree <- wgm_agree %>%
   mutate(Region = country_to_region[Country],
          Region = ifelse(is.na(Region), "Other/Unclassified", Region))
 
+
+region_extremes <- wgm_agree %>%
+  filter(Region != "Other/Unclassified") %>%
+  group_by(Region) %>%
+  summarise(
+    LowestCountry = Country[which.min(percent_agree)],
+    LowestPercent = min(percent_agree, na.rm = TRUE),
+    HighestCountry = Country[which.max(percent_agree)],
+    HighestPercent = max(percent_agree, na.rm = TRUE),
+    .groups = "drop"
+  )
+
 ```
 
 
 # Belief that Vaccines are Safe
+
 
 ```{r}
 
@@ -170,6 +180,65 @@ browsable(
 )
 
 
+```
+
+## Global region extremes {.column-body} {width="20%"}
+
+```{r}
+#| title: Highest and Lowest Scores by Region
+
+library(dplyr)
+library(htmltools)
+
+# Step 1: Compute region extremes
+region_extremes <- wgm_agree %>%
+  group_by(Region) %>%
+  summarise(
+    LowestCountry = Country[which.min(percent_agree)],
+    LowestPercent = min(percent_agree, na.rm = TRUE),
+    HighestCountry = Country[which.max(percent_agree)],
+    HighestPercent = max(percent_agree, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# Step 2: Apply custom region order
+custom_order <- c(
+  "Asia",
+  "Sub-Saharan Africa",
+  "Middle East and North Africa",
+  "Americas",
+  "Other/Unclassified",
+  "Europe",
+  "Former Soviet Union"
+)
+
+region_extremes$Region <- factor(region_extremes$Region, levels = custom_order)
+region_extremes <- region_extremes[order(region_extremes$Region), ]
+
+regions <- unique(wgm_agree_filtered$Region)
+region_colors <- setNames(scales::hue_pal()(length(regions)), regions)
+
+region_colors <- setNames(scales::hue_pal()(length(custom_order)), rev(custom_order))
+
+# Create cards with correct colors
+tagList(
+  lapply(1:nrow(region_extremes), function(i) {
+    region_name <- as.character(region_extremes$Region[i])
+    border_color <- region_colors[[region_name]]
+    
+    div(class = "card",
+        style = paste0("padding: 0.8em; margin-bottom: 0.8em; background-color: #f9f9f9; ",
+                       "border-left: 6px solid ", border_color, "; font-size: 12px; overflow: visible;"),
+        h4(style = "font-size: 16px; font-weight: bold; margin-bottom: 0.4em;", region_name),
+        p(style = "margin: 0;", tags$strong("Lowest: "),
+          region_extremes$LowestCountry[i],
+          paste0(" (", round(region_extremes$LowestPercent[i] * 100, 1), "%)")),
+        p(style = "margin: 0;", tags$strong("Highest: "),
+          region_extremes$HighestCountry[i],
+          paste0(" (", round(region_extremes$HighestPercent[i] * 100, 1), "%)"))
+    )
+  })
+)
 ```
 
 # Belief that Technology Will Increases Jobs in the Next Five Years
