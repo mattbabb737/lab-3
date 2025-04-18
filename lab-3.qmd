@@ -97,6 +97,8 @@ wgm_agree <- wgm_agree %>%
 ```
 
 
+# Belief that Vaccines are Safe
+
 ```{r}
 
 library(plotly)
@@ -170,6 +172,11 @@ browsable(
 
 ```
 
+# Belief that Technology Will Increases Jobs in the Next Five Years
+
+### Two tabs: Technology Will Increases Jobs in the Next Five Years {.tabset}
+
+#### Map View
 
 ```{r}
 
@@ -252,3 +259,40 @@ leaflet(q19_geo) %>%
 
 ```
 
+#### Table View
+
+```{r}
+
+library(dplyr)
+library(DT)
+library(scales)
+library(htmltools)
+
+# Prepare the data
+datatable_data <- q19_geo %>%
+  select(Country, Increase, Decrease, Total) %>%
+  filter(!is.na(Increase), !is.na(Decrease), !is.na(Total)) %>%
+  mutate(
+    Increase = round(Increase * 100, 1),
+    Decrease = round(Decrease * 100, 1),
+    Net = round(Total * 100, 1)
+  ) %>%
+  select(Country, Increase, Decrease, Net)
+
+# Render table with caption at the top
+DT::datatable(
+  datatable_data,
+  caption = htmltools::tags$caption(
+    style = "caption-side: top; text-align: left; font-weight: bold;",
+    "Agreement (%) that Technology Will Increase Jobs in the Next 5 Years"
+  ),
+  options = list(pageLength = 15),
+  rownames = FALSE
+) %>%
+  formatStyle(
+    "Net",
+    color = styleInterval(0, c("#440154", "#228B22")),
+    fontWeight = "bold"
+  )
+
+```
